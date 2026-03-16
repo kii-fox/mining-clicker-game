@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+mining-clicker-79aa7-firebase-adminsdk-fbsvc-c340d8fc74.json

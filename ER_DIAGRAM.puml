@@ -1,0 +1,70 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity users {
+  +id : INT <<PK>>
+  --
+  username : VARCHAR
+  password_hash : VARCHAR
+  created_at : DATETIME
+  is_logged_in : BOOLEAN
+}
+
+entity save_data {
+  +id : INT <<PK>>
+  --
+  user_id : INT <<FK>>
+  device_name : VARCHAR
+  last_login_at : DATETIME
+  created_at : DATETIME
+}
+
+entity material_master {
+  +id : INT <<PK>>
+  --
+  material_type : VARCHAR
+  display_name : VARCHAR
+  base_drop_rate : FLOAT
+  is_rare : BOOLEAN
+  description : TEXT
+  created_at : DATETIME
+}
+
+entity tool_master {
+  +id : INT <<PK>>
+  --
+  tool_type : VARCHAR
+  display_name : VARCHAR
+  base_durability : INT
+  durability_cost_per_mine : INT
+  mining_power : FLOAT
+  required_materials : JSON
+  repair_materials : JSON
+  created_at : DATETIME
+}
+
+entity materials {
+  +id : INT <<PK>>
+  --
+  save_data_id : INT <<FK>>
+  material_master_id : INT <<FK>>
+  amount : INT
+}
+
+entity tools {
+  +id : INT <<PK>>
+  --
+  save_data_id : INT <<FK>>
+  tool_master_id : INT <<FK>>
+  durability : INT
+  is_equipped : BOOLEAN
+}
+
+users ||--o{ save_data
+save_data ||--o{ materials
+save_data ||--o{ tools
+material_master ||--o{ materials
+tool_master ||--o{ tools
+
+@enduml

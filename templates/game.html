@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mining Clicker - Game</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --header-color: #2c3e50;
+            --accent-color: #00cec9;
+            --danger-color: #c0392b;
+            --panel-bg: rgba(0, 0, 0, 0.6);
+        }
+
+        body {
+            margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color); color: #ffffff;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        /* --- ヘッダー --- */
+        .game-header {
+            background-color: var(--header-color);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; height: 60px; border-bottom: 3px solid #34495e;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10;
+        }
+        .header-center { display: flex; gap: 15px; }
+        .resource-item {
+            background: rgba(0, 0, 0, 0.4); padding: 5px 12px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px; border: 1px solid #444;
+        }
+        .resource-item .amount { color: #f1c40f; font-weight: bold; min-width: 30px; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .user-info { font-size: 0.8rem; background: #000; padding: 5px; border-radius: 4px; cursor: pointer; }
+
+        /* --- メインレイアウト --- */
+        main { flex: 1; display: flex; }
+
+        /* 採掘セクション */
+        .mining-section {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            background: radial-gradient(circle, #2c3e50 0%, #000 100%);
+            position: relative;
+        }
+
+        #mining-button {
+            width: 260px; height: 260px; border-radius: 50%; border: 10px solid #7f8c8d;
+            background-color: #333; color: white; font-size: 1.5rem; font-weight: bold;
+            cursor: pointer; transition: transform 0.05s; box-shadow: 0 0 40px rgba(0,0,0,0.6);
+            display: flex; justify-content: center; align-items: center;
+        }
+        #mining-button:active:not(:disabled) { transform: scale(0.95); }
+        #mining-button:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
+
+        /* 耐久値パネル */
+        .status-panel {
+            width: 220px; background: var(--panel-bg); border: 1px solid #444;
+            border-radius: 12px; padding: 20px; margin-left: 40px;
+        }
+        .durability-bar-bg { width: 100%; height: 12px; background: #333; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+        #durability-fill { width: 100%; height: 100%; background: var(--accent-color); transition: width 0.3s; }
+
+        /* サイドナビ */
+        nav {
+            width: 200px; background-color: #252525; display: flex;
+            flex-direction: column; gap: 10px; padding: 20px; border-left: 2px solid #444;
+        }
+        .menu-btn {
+            padding: 15px; background: #34495e; border: none; color: white;
+            border-radius: 8px; cursor: pointer; text-align: left; transition: 0.2s;
+        }
+        .menu-btn:hover { background: #4b6584; }
+
+        /* モーダル */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #2d3436; width: 480px; padding: 30px; border-radius: 15px;
+            border: 2px solid #636e72; position: relative; max-height: 80vh; overflow-y: auto;
+        }
+        .close-btn { position: absolute; top: 15px; right: 20px; cursor: pointer; color: #ff7675; font-weight: bold; }
+
+        /* 共通ボタン & リストアイテム */
+        .action-btn { background: var(--accent-color); color: #000; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .action-btn:disabled { background: #555; cursor: not-allowed; }
+        .logout-btn { background: var(--danger-color); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        
+        .list-card { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .list-card.equipped { border-color: var(--accent-color); background: #1e272e; }
+    </style>
+</head>
+<body>
+
+    <header class="game-header">
+        <div class="header-left">
+            <div style="font-weight: bold; letter-spacing: 1px;">MINING CLICKER</div>
+        </div>
+        <div class="header-center">
+            <div class="resource-item"><span>🪨</span><span id="stone-val" class="amount">0</span></div>
+            <div class="resource-item"><span>🔥</span><span id="coal-val" class="amount">0</span></div>
+            <div class="resource-item"><span>⛓️</span><span id="iron-val" class="amount">0</span></div>
+        </div>
+        <div class="header-right">
+            <div class="user-info" id="uid-display">UID: ------</div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="mining-section">
+            <button id="mining-button" onclick="mineClick()">MINE!</button>
+
+            <div class="status-panel">
+                <div style="font-size: 0.8rem; color: #aaa;">EQUIPPED</div>
+                <div id="tool-name" style="font-weight: bold; color: var(--accent-color); margin-bottom: 15px;">---</div>
+                
+                <div style="font-size: 0.8rem; color: #aaa;">DURABILITY</div>
+                <div class="durability-bar-bg">
+                    <div id="durability-fill"></div>
+                </div>
+                <div id="durability-text" style="font-size: 0.8rem; text-align: right; margin-top: 5px;">0 / 0</div>
+            </div>
+        </section>
+
+        <nav>
+            <button class="menu-btn" onclick="openUI('equipment')">👕 装備確認</button>
+            <button class="menu-btn" onclick="openUI('crafting')">⚒️ 製作</button>
+            <button class="menu-btn" onclick="openUI('research')">🔬 研究</button>
+        </nav>
+    </main>
+
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeUI()">[CLOSE]</span>
+            <h2 id="modal-title">TITLE</h2>
+            <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+
+    let currentMaterials = {}
+
+    async function init() {
+
+        const res = await fetch('/me')
+        const data = await res.json()
+
+        if (data.uid)
+            document.getElementById('uid-display').innerText = `UID: ${data.uid}`
+
+        await refreshData()
+    }
+
+    async function refreshData() {
+
+        // -------------------------
+        // 素材取得
+        // -------------------------
+
+        const matRes = await fetch('/materials')
+
+        if (matRes.ok) {
+
+            currentMaterials = await matRes.json()
+
+            document.getElementById('stone-val').innerText =
+                currentMaterials.stone || 0
+
+            document.getElementById('coal-val').innerText =
+                currentMaterials.coal || 0
+
+            document.getElementById('iron-val').innerText =
+                currentMaterials.iron || 0
+        }
+
+        // -------------------------
+        // ツール取得
+        // -------------------------
+
+        const toolRes = await fetch('/tools')
+
+        if (toolRes.ok) {
+
+            const tools = await toolRes.json()
+
+            const equipped = tools.find(t => t.is_equipped)
+
+            const btn = document.getElementById('mining-button')
+
+            if (equipped) {
+
+                document.getElementById('tool-name').innerText =
+                    equipped.name || equipped.tool_type
+
+                const percent =
+                    (equipped.durability / equipped.max_durability) * 100
+
+                document.getElementById('durability-fill').style.width =
+                    percent + "%"
+
+                document.getElementById('durability-text').innerText =
+                    `${equipped.durability} / ${equipped.max_durability}`
+
+                btn.disabled = false
+                btn.innerText = "MINE!"
+
+            } else {
+
+                document.getElementById('tool-name').innerText = "なし"
+
+                document.getElementById('durability-fill').style.width = "0%"
+
+                document.getElementById('durability-text').innerText = "0 / 0"
+
+                btn.disabled = true
+                btn.innerText = "ツールなし"
+            }
+        }
+    }
+
+    async function mineClick() {
+
+        const res = await fetch('/mine', {
+            method: 'POST'
+        })
+
+        const data = await res.json()
+
+        if (res.ok) {
+
+            await refreshData()
+
+        } else {
+
+            alert(data.error)
+
+            await refreshData()
+        }
+    }
+
+    async function openUI(type) {
+
+        const modal = document.getElementById('modal')
+        const title = document.getElementById('modal-title')
+        const body = document.getElementById('modal-body')
+
+        body.innerHTML = "読み込み中..."
+        modal.style.display = 'flex'
+
+        // -------------------------
+        // 装備
+        // -------------------------
+
+        if (type === "equipment") {
+
+            title.innerText = "所持ツール一覧"
+
+            const res = await fetch('/tools')
+            const tools = await res.json()
+
+            body.innerHTML = tools.map(t => `
+
+                <div class="list-card ${t.is_equipped ? 'equipped' : ''}">
+
+                    <div>
+
+                        <strong>${t.name || t.tool_type}</strong><br>
+
+                        <small>
+                        耐久: ${t.durability}/${t.max_durability}
+                        </small>
+
+                    </div>
+
+                    ${
+                        t.is_equipped
+                        ? "<span>✅ 装備中</span>"
+                        : `<button class="action-btn"
+                        onclick="equip('${t.id}')">
+                        装備
+                        </button>`
+                    }
+
+                </div>
+
+            `).join("") || "ツールを持っていません"
+        }
+
+        // -------------------------
+        // クラフト
+        // -------------------------
+
+        else if (type === "crafting") {
+
+            title.innerText = "ツール製作"
+
+            const res = await fetch('/craftable_tools')
+            const tools = await res.json()
+
+            body.innerHTML = tools.map(t => {
+
+                let costText = Object.entries(t.craft_cost)
+                    .map(([k,v]) => `${k} ${v}`)
+                    .join(", ")
+
+                return `
+
+                <div class="list-card">
+
+                    <div>
+
+                        <strong>${t.name}</strong><br>
+
+                        <small>必要: ${costText}</small>
+
+                    </div>
+
+                    <button class="action-btn"
+                    onclick="craft('${t.tool_type}')">
+
+                    製作
+
+                    </button>
+
+                </div>
+
+                `
+            }).join("") || "製作可能なツールがありません"
+        }
+
+        // -------------------------
+        // 研究
+        // -------------------------
+
+        else if (type === "research") {
+
+            title.innerText = "研究開発"
+
+            body.innerHTML = `
+
+            <div class="list-card">
+
+                <div>
+
+                    <strong>鉄ピッケル解放</strong><br>
+
+                    <small>必要: stone 100 / iron 10</small>
+
+                </div>
+
+                <button class="action-btn"
+                onclick="research('iron_pickaxe')">
+
+                研究開始
+
+                </button>
+
+            </div>
+
+            `
+        }
+    }
+
+    async function equip(id) {
+
+        await fetch('/tools/equip', {
+
+            method: 'POST',
+
+            headers: {
+                'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+                tool_id: id
+            })
+        })
+
+        await refreshData()
+
+        openUI("equipment")
+    }
+
+    async function craft(type) {
+
+        const res = await fetch('/tools/craft', {
+
+            method: 'POST',
+
+            headers: {
+                'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+                tool_type: type
+            })
+        })
+
+        const data = await res.json()
+
+        if (res.ok) {
+
+            alert("製作完了")
+
+            await refreshData()
+
+            closeUI()
+
+        } else {
+
+            alert(data.error)
+        }
+    }
+
+    async function research(id) {
+
+        const res = await fetch('/research', {
+
+            method: 'POST',
+
+            headers: {
+                'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+                research_id: id
+            })
+        })
+
+        const data = await res.json()
+
+        alert(data.message || data.error)
+
+        await refreshData()
+
+        closeUI()
+    }
+
+    function closeUI() {
+
+        document.getElementById('modal').style.display = "none"
+    }
+
+    async function logout() {
+
+        if (confirm("ログアウトしますか？")) {
+
+            await fetch('/logout', {
+                method: 'POST'
+            })
+
+            window.location.href = "/"
+        }
+    }
+
+    window.onload = init
+
+    </script>
+</body>
+</html>
