@@ -4,6 +4,9 @@ from firebase_admin import credentials, firestore
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
 from datetime import datetime
+import os
+import json
+
 
 app = Flask(__name__)
 app.secret_key = "secret-key-change-this"
@@ -12,13 +15,19 @@ app.secret_key = "secret-key-change-this"
 # Firebase 初期化
 # -------------------------
 
-cred = credentials.Certificate(
-    "mining-clicker-79aa7-firebase-adminsdk-fbsvc-c340d8fc74.json"
-)
+if os.getenv("FIREBASE_KEY"):
+    # Renderなどクラウド環境
+    firebase_key = json.loads(os.environ["FIREBASE_KEY"])
+    cred = credentials.Certificate(firebase_key)
+else:
+    # ローカル環境
+    cred = credentials.Certificate(
+        "mining-clicker-79aa7-firebase-adminsdk-fbsvc-c340d8fc74.json"
+    )
+
 firebase_admin.initialize_app(cred)
 
 db = firestore.client()
-
 # -------------------------
 # UID生成（6桁）
 # -------------------------
@@ -589,8 +598,6 @@ def research():
         "message": "Research complete"
     })
 # -------------------------
-
-import os
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
